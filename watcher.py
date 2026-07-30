@@ -1,6 +1,5 @@
-print("VERSION 2 - DEBUG")
-
 import json
+import os
 import re
 import urllib.parse
 import urllib.request
@@ -46,7 +45,7 @@ def send_ntfy(topic: str, title: str, message: str):
         resp.read()
 
 
-def fetch_stream_snapshot(url: str, player: str) -> str | None:
+def fetch_leaderboard_json(url: str):
     req = urllib.request.Request(
         url,
         headers={
@@ -57,7 +56,8 @@ def fetch_stream_snapshot(url: str, player: str) -> str | None:
     )
 
     with urllib.request.urlopen(req, timeout=120) as resp:
-        event_data = []
+        event_name = None
+        data_lines = []
 
         while True:
             line = resp.readline()
@@ -67,15 +67,47 @@ def fetch_stream_snapshot(url: str, player: str) -> str | None:
             text = line.decode("utf-8", errors="ignore").rstrip("\n\r")
 
             if text == "":
-                if event_data:
-                    payload = "\n".join(event_data).strip()
-                    print("PAYLOAD:")
-                    print(payload)
-                    return payload
+                if event_name == "leaderboard" and data_lines:
+                    payload = "\n".join(data_lines).strip()
+                    return json.loads(payload)
+                event_name = None
+                data_lines = []
                 continue
 
-            if text.startswith("data:"):
-                event_data.append(text[5:].strip())
+            if text.startswith("event:"):
+                event_name = text[6:].strip()
+            elif text.startswith("data:"):
+                data_lines.append(text[5:].strip())
+
+    return None
+
+
+def extract_player_snapshot(data: dict, player_full_name: str):
+    parts = player_full_name.strip().split(None, 1)
+    if len(parts) != 2:
+        raise ValueError(f"Expected 'First Last' format, got: {player_full_name}")
+
+    first_name, last_name = parts[0], parts[1]
+
+    for leaderboard in data.get("leaderboards", []):
+        classes = leaderboard.get("Classes", [])
+        class_name = classes[0].get("Name", "") if classes else ""
+
+        for entry in leaderboard.get("LeaderboardEntries", []):
+            player = entry.get("Player", {})
+            if (
+                player.get("FirstName", "").strip() == first_name
+                and player.get("LastName", "").strip() == last_name
+            ):
+                return {
+                    "class": class_name,
+                    "position": entry.get("Position", {}).get("Text", ""),
+                    "score": entry.get("ScoreSum"),
+                    "to_par": entry.get("ScoringToPar", {}).get("ToPar", {}).get("Text", ""),
+                    "played_holes": entry.get("PlayedHoles"),
+                    "scoring_status": entry.get("ScoringStatus"),
+                    "entry_id": entry.get("EntryID"),
+                }
 
     return None
 
@@ -91,20 +123,32 @@ def main():
         name = watch["name"]
         url = watch["url"]
         player = watch["player"]
-
-        current = fetch_stream_snapshot(url, player)
         key = f"{name}::{player}::{url}"
-        previous = state.get(key)
 
-        if not current:
-            updates.append(f"{name}: hittade ingen uppdatering för {player}")
+        data = fetch_leaderboard_json(url)
+        if not data:
+            updates.append(f"{name}: kunde inte läsa leaderboard-data")
             continue
 
+        current = extract_player_snapshot(data, player)
+        if not current:
+            updates.append(f"{name}: hittade ingen rad för {player}")
+            continue
+
+        previous = state.get(key)
+
         if previous != current:
-            message = f"{player}\n\n{current}\n\n{url}"
+            message = (
+                f"{player}\n"
+                f"Placering: {current['position']}\n"
+                f"Score: {current['score']} ({current['to_par']})\n"
+                f"Hål spelade: {current['played_holes']}\n"
+                f"Klass: {current['class']}\n\n"
+                f"{url}"
+            )
             send_ntfy(topic, f"Golfuppdatering: {player}", message)
             state[key] = current
-            updates.append(f"Uppdaterad: {player}")
+            updates.append(f"Uppdaterad: {player} -> {current['position']}")
 
     save_state(state)
     print("\n".join(updates) if updates else "Ingen ändring.")
