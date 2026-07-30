@@ -47,35 +47,40 @@ def send_ntfy(topic: str, title: str, message: str):
 
 
 def fetch_leaderboard_json(url: str):
-    req = urllib.request.Request(
+    resp = requests.get(
         url,
         headers={
             "Accept": "text/event-stream",
             "Cache-Control": "no-cache",
             "User-Agent": "Mozilla/5.0",
         },
+        stream=True,
+        timeout=120,
     )
+    resp.raise_for_status()
 
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        event_name = None
-        data_lines = []
+    event_name = None
+    data_lines = []
 
-        for raw_line in resp:
-            line = raw_line.decode("utf-8", errors="ignore").strip()
+    for line in resp.iter_lines(decode_unicode=True):
+        if line is None:
+            continue
 
-            if line == "":
-                if event_name == "leaderboard" and data_lines:
-                    payload = "\n".join(data_lines).strip()
-                    return json.loads(payload)
+        line = line.strip()
 
-                event_name = None
-                data_lines = []
-                continue
+        if line == "":
+            if event_name == "leaderboard" and data_lines:
+                payload = "\n".join(data_lines).strip()
+                return json.loads(payload)
 
-            if line.startswith("event:"):
-                event_name = line[len("event:"):].strip()
-            elif line.startswith("data:"):
-                data_lines.append(line[len("data:"):].strip())
+            event_name = None
+            data_lines = []
+            continue
+
+        if line.startswith("event:"):
+            event_name = line[len("event:"):].strip()
+        elif line.startswith("data:"):
+            data_lines.append(line[len("data:"):].strip())
 
     return None
 
