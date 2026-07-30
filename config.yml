@@ -1,6 +1,6 @@
 watches:
   - name: "Lukas Widegren"
-    url: "https://tournytt.se/juniortavlingar/svenska-juniortouren/svenska-juniortouren-div-3-4-sodermanland-5405880/leaderboard"
+    competition: 5405880
     player: "Lukas Widegren"
 
 ntfy:
