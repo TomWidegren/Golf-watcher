@@ -59,25 +59,22 @@ def fetch_leaderboard_json(url: str):
         event_name = None
         data_lines = []
 
-        while True:
-            line = resp.readline()
-            if not line:
-                break
+        for raw_line in resp:
+            line = raw_line.decode("utf-8", errors="ignore").strip()
 
-            text = line.decode("utf-8", errors="ignore").rstrip("\n\r")
-
-            if text == "":
+            if line == "":
                 if event_name == "leaderboard" and data_lines:
                     payload = "\n".join(data_lines).strip()
                     return json.loads(payload)
+
                 event_name = None
                 data_lines = []
                 continue
 
-            if text.startswith("event:"):
-                event_name = text[6:].strip()
-            elif text.startswith("data:"):
-                data_lines.append(text[5:].strip())
+            if line.startswith("event:"):
+                event_name = line[len("event:"):].strip()
+            elif line.startswith("data:"):
+                data_lines.append(line[len("data:"):].strip())
 
     return None
 
