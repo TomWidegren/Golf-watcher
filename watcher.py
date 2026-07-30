@@ -58,26 +58,31 @@ def fetch_leaderboard_json(competition_id: int):
 
     event_name = None
     data_lines = []
+    buffer = ""
 
-    for raw_line in resp.iter_lines(decode_unicode=True):
-        if raw_line is None:
+    for chunk in resp.iter_content(chunk_size=8192, decode_unicode=True):
+        if not chunk:
             continue
 
-        line = raw_line.strip()
+        buffer += chunk
 
-        if line == "":
-            if event_name == "leaderboard" and data_lines:
-                payload = "\n".join(data_lines).strip()
-                return json.loads(payload)
+        while "\n" in buffer:
+            line, buffer = buffer.split("\n", 1)
+            line = line.rstrip("\r")
 
-            event_name = None
-            data_lines = []
-            continue
+            if line == "":
+                if event_name == "leaderboard" and data_lines:
+                    payload = "".join(data_lines).strip()
+                    return json.loads(payload)
 
-        if line.startswith("event:"):
-            event_name = line[len("event:"):].strip()
-        elif line.startswith("data:"):
-            data_lines.append(line[len("data:"):].strip())
+                event_name = None
+                data_lines = []
+                continue
+
+            if line.startswith("event:"):
+                event_name = line[len("event:"):].strip()
+            elif line.startswith("data:"):
+                data_lines.append(line[len("data:"):].lstrip())
 
     return None
 
