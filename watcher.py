@@ -1,3 +1,5 @@
+print("VERSION 2 - DEBUG")
+
 import json
 import re
 import urllib.parse
