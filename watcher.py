@@ -5,7 +5,6 @@ import urllib.request
 from pathlib import Path
 
 import yaml
-from playwright.sync_api import sync_playwright
 
 CONFIG_FILE = Path("config.yml")
 STATE_FILE = Path("state.json")
@@ -45,27 +44,39 @@ def send_ntfy(topic: str, title: str, message: str):
         resp.read()
 
 
-def fetch_player_line(url: str, player: str):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1400, "height": 1200})
-        page.goto(url, wait_until="domcontentloaded", timeout=120000)
-        page.wait_for_timeout(5000)
+def fetch_stream_snapshot(url: str, player: str) -> str | None:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "User-Agent": "Mozilla/5.0",
+        },
+    )
 
-        rows = page.locator("tr")
-        for i in range(rows.count()):
-            text = normalize(rows.nth(i).inner_text())
-            if player.lower() in text.lower():
-                browser.close()
-                return text
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        event_data = []
 
-        body = normalize(page.locator("body").inner_text())
-        browser.close()
+        while True:
+            line = resp.readline()
+            if not line:
+                break
 
-        for line in body.splitlines():
-            line = normalize(line)
-            if player.lower() in line.lower():
-                return line
+            text = line.decode("utf-8", errors="ignore").rstrip("\n\r")
+
+            # SSE event separator
+            if text == "":
+                if event_data:
+                    payload = "\n".join(event_data).strip()
+                    event_data = []
+
+                    if player.lower() in payload.lower():
+                        return payload
+                continue
+
+            # SSE data line
+            if text.startswith("data:"):
+                event_data.append(text[5:].strip())
 
     return None
 
@@ -75,26 +86,23 @@ def main():
     state = load_state()
     updates = []
 
+    topic = config["ntfy"]["topic"]
+
     for watch in config["watches"]:
         name = watch["name"]
         url = watch["url"]
         player = watch["player"]
-        topic = config["ntfy"]["topic"]
 
-        current = fetch_player_line(url, player)
+        current = fetch_stream_snapshot(url, player)
         key = f"{name}::{player}::{url}"
         previous = state.get(key)
 
         if not current:
-            updates.append(f"{name}: hittade ingen rad för {player}")
+            updates.append(f"{name}: hittade ingen uppdatering för {player}")
             continue
 
         if previous != current:
-            message = (
-                f"{player}\n"
-                f"{current}\n\n"
-                f"{url}"
-            )
+            message = f"{player}\n\n{current}\n\n{url}"
             send_ntfy(topic, f"Golfuppdatering: {player}", message)
             state[key] = current
             updates.append(f"Uppdaterad: {player}")
