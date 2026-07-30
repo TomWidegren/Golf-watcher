@@ -1,0 +1,7 @@
+watches:
+  - name: "Lukas Widegren"
+    url: "https://tournytt.se/juniortavlingar/svenska-juniortouren/svenska-juniortouren-div-3-4-sodermanland-5405880/leaderboard"
+    player: "Lukas Widegren"
+
+ntfy:
+  topic: "tom-widegren-golf-92fd71b8"
