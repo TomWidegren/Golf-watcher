@@ -64,17 +64,14 @@ def fetch_stream_snapshot(url: str, player: str) -> str | None:
 
             text = line.decode("utf-8", errors="ignore").rstrip("\n\r")
 
-            # SSE event separator
             if text == "":
                 if event_data:
                     payload = "\n".join(event_data).strip()
-                    event_data = []
-
-                    if player.lower() in payload.lower():
-                        return payload
+                    print("PAYLOAD:")
+                    print(payload)
+                    return payload
                 continue
 
-            # SSE data line
             if text.startswith("data:"):
                 event_data.append(text[5:].strip())
 
