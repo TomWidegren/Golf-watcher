@@ -1,8 +1,6 @@
 name: Check golf leaderboard
 
 on:
-  schedule:
-  -  cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
