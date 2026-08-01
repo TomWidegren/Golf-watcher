@@ -5,6 +5,10 @@ from pathlib import Path
 import requests
 import yaml
 
+from playwright.sync_api import sync_playwright
+
+HANINGE_LEADERBOARD_URL = "https://www.haningegk.se/tavling#/competition/5624874/leaderboard/5080993"
+
 CONFIG_FILE = Path("config.yml")
 STATE_FILE = Path("state.json")
 
@@ -40,80 +44,36 @@ def send_ntfy(topic: str, title: str, message: str):
     )
     resp.raise_for_status()
 
+def fetch_player_snapshot(url: str, player_full_name: str):
+    tokens = [normalize(part).lower() for part in player_full_name.split() if part]
 
-def fetch_leaderboard_json(competition_id: int):
-    url = f"https://tournytt.se/api/leaderboard/stream?competitions={competition_id}"
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": 1600, "height": 1200})
 
-    resp = requests.get(
-        url,
-        headers={
-            "Accept": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "User-Agent": "Mozilla/5.0",
-        },
-        stream=True,
-        timeout=60,
-    )
-    resp.raise_for_status()
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=120000)
+            page.wait_for_timeout(8000)
 
-    event_name = None
-    data_lines = []
-    buffer = ""
+            rows = page.locator("tr")
+            for i in range(rows.count()):
+                text = normalize(rows.nth(i).inner_text())
+                lower_text = text.lower()
 
-    for chunk in resp.iter_content(chunk_size=8192, decode_unicode=True):
-        if not chunk:
-            continue
+                if tokens and all(token in lower_text for token in tokens):
+                    return {"row_text": text}
 
-        buffer += chunk
+            body_text = page.locator("body").inner_text()
+            for line in body_text.splitlines():
+                text = normalize(line)
+                lower_text = text.lower()
 
-        while "\n" in buffer:
-            line, buffer = buffer.split("\n", 1)
-            line = line.rstrip("\r")
+                if tokens and all(token in lower_text for token in tokens):
+                    return {"row_text": text}
 
-            if line == "":
-                if event_name == "leaderboard" and data_lines:
-                    payload = "".join(data_lines).strip()
-                    return json.loads(payload)
-
-                event_name = None
-                data_lines = []
-                continue
-
-            if line.startswith("event:"):
-                event_name = line[len("event:"):].strip()
-            elif line.startswith("data:"):
-                data_lines.append(line[len("data:"):].lstrip())
-
-    return None
-
-
-def extract_player_snapshot(data: dict, player_full_name: str):
-    parts = player_full_name.strip().split(maxsplit=1)
-    if len(parts) != 2:
-        raise ValueError("player must be in 'First Last' format")
-
-    first_name, last_name = parts
-
-    for leaderboard in data.get("leaderboards", []):
-        classes = leaderboard.get("Classes", [])
-        class_name = classes[0].get("Name", "") if classes else ""
-
-        for entry in leaderboard.get("LeaderboardEntries", []):
-            player = entry.get("Player", {})
-            if (
-                normalize(player.get("FirstName", "")) == first_name
-                and normalize(player.get("LastName", "")) == last_name
-            ):
-                return {
-                    "class": class_name,
-                    "position": entry.get("Position", {}).get("Text", ""),
-                    "score": entry.get("ScoreSum"),
-                    "to_par": entry.get("ScoringToPar", {}).get("ToPar", {}).get("Text", ""),
-                    "played_holes": entry.get("PlayedHoles"),
-                    "status": entry.get("ScoringStatus"),
-                }
-
-    return None
+            return None
+        finally:
+            browser.close()
 
 
 def main():
@@ -128,16 +88,14 @@ def main():
         player_name = watch["player"]
         key = f"{competition_id}::{player_name}"
 
-        data = fetch_leaderboard_json(competition_id)
-        if not data:
-            print(f"{player_name}: kunde inte läsa leaderboard-data")
-            continue
+    leaderboard_url = watch.get("leaderboard_url", HANINGE_LEADERBOARD_URL)
 
-        current = extract_player_snapshot(data, player_name)
-        if not current:
-            print(f"{player_name}: hittade ingen rad")
-            continue
+    current = fetch_player_snapshot(leaderboard_url, player_name)
+    if not current:
+    print(f"{player_name}: hittade ingen rad")
+    continue
 
+        
         previous = state.get(key)
 
         # Första körningen sparar bara basläget.
@@ -147,13 +105,7 @@ def main():
             continue
 
         if previous != current:
-            message = (
-                f"{player_name}\n"
-                f"Placering: {current['position']}\n"
-                f"Score: {current['score']} ({current['to_par']})\n"
-                f"Hål spelade: {current['played_holes']}\n"
-                f"Klass: {current['class']}\n"
-            )
+            message = f"{player_name}\n{current['row_text']}\n"
             send_ntfy(topic, f"Golfuppdatering: {player_name}", message)
             state[key] = current
             updates.append(f"Uppdaterad: {player_name} -> {current['position']}")
