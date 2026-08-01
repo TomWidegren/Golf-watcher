@@ -92,23 +92,23 @@ def main():
 
     current = fetch_player_snapshot(leaderboard_url, player_name)
     if not current:
-    print(f"{player_name}: hittade ingen rad")
-    continue
+        print(f"{player_name}: hittade ingen rad")
+        continue
 
         
-        previous = state.get(key)
+    previous = state.get(key)
 
-        # Första körningen sparar bara basläget.
-        if previous is None:
-            state[key] = current
-            updates.append(f"Baslinje sparad för {player_name}")
-            continue
+    # Första körningen sparar bara basläget.
+    if previous is None:
+        state[key] = current
+        updates.append(f"Baslinje sparad för {player_name}")
+        continue
 
-        if previous != current:
-            message = f"{player_name}\n{current['row_text']}\n"
-            send_ntfy(topic, f"Golfuppdatering: {player_name}", message)
-            state[key] = current
-            updates.append(f"Uppdaterad: {player_name} -> {current['position']}")
+    if previous != current:
+        message = f"{player_name}\n{current['row_text']}\n"
+        send_ntfy(topic, f"Golfuppdatering: {player_name}", message)
+        state[key] = current
+        updates.append(f"Uppdaterad: {player_name} -> {current['position']}")
 
     save_state(state)
     print("\n".join(updates) if updates else "Ingen ändring.")
