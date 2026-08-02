@@ -56,28 +56,34 @@ def fetch_player_snapshot(url: str, player_full_name: str):
         page = browser.new_page(viewport={"width": 1600, "height": 1200})
 
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=120000)
-            page.wait_for_timeout(8000)
+            page.goto(url, wait_until="networkidle", timeout=120000)
 
-            # Välj rätt klass
-            try:
-                page.locator("select").first.select_option(label="Herr klass")
-                page.wait_for_timeout(5000)
-            except Exception as e:
-                print(f"DEBUG: kunde inte välja Herr klass: {e}")
+            # Försök hitta raden direkt först
+            def search_now():
+                text = normalize(page.locator("body").inner_text()).lower()
+                return any(target in text for target in targets), text
 
-            body_text = normalize(page.locator("body").inner_text()).lower()
+            found, text = search_now()
+            if found:
+                idx = next(text.index(t) for t in targets if t in text)
+                return {"row_text": normalize(page.locator("body").inner_text()[max(0, idx - 200): idx + 500])}
 
-            for target in targets:
-                if target in body_text:
-                    idx = body_text.index(target)
-                    snippet = page.locator("body").inner_text()
-                    return {"row_text": normalize(snippet[max(0, idx - 200): idx + 500])}
+            # Scrolla ned lite i taget och sök igen
+            for _ in range(12):
+                page.mouse.wheel(0, 1200)
+                page.wait_for_timeout(1500)
 
-            print("DEBUG: Lukas hittades inte i body-texten")
+                found, text = search_now()
+                if found:
+                    idx = next(text.index(t) for t in targets if t in text)
+                    return {"row_text": normalize(page.locator("body").inner_text()[max(0, idx - 200): idx + 500])}
+
+            print("DEBUG: Lukas hittades inte efter scroll")
+            print(page.locator("body").inner_text()[:4000])
             return None
         finally:
             browser.close()
+
 
 def main():
     config = load_config()
