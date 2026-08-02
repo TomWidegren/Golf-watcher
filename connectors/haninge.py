@@ -62,7 +62,6 @@ def extract_row_snapshot(row):
             return ""
 
     return {
-        "row_text": normalize(row.inner_text()),
         "position": safe("[id$='-position']"),
         "name": safe("[id$='-name']"),
         "club": safe("[id$='-club']"),
