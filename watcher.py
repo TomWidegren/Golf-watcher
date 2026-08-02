@@ -57,35 +57,27 @@ def fetch_player_snapshot(url: str, player_full_name: str):
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=120000)
-            page.wait_for_timeout(15000)
+            page.wait_for_timeout(8000)
 
-            # Sök i huvud-sidan + alla frames
-            frames = [page] + list(page.frames)
+            # Välj rätt klass
+            try:
+                page.locator("select").first.select_option(label="Herr klass")
+                page.wait_for_timeout(5000)
+            except Exception as e:
+                print(f"DEBUG: kunde inte välja Herr klass: {e}")
 
-            for obj in frames:
-                try:
-                    text = normalize(obj.locator("body").inner_text()).lower()
-                except Exception:
-                    continue
+            body_text = normalize(page.locator("body").inner_text()).lower()
 
-                if any(target in text for target in targets):
-                    return {"row_text": text}
+            for target in targets:
+                if target in body_text:
+                    idx = body_text.index(target)
+                    snippet = page.locator("body").inner_text()
+                    return {"row_text": normalize(snippet[max(0, idx - 200): idx + 500])}
 
-            # Fallback: hela HTML:en på huvudsidan
-            html = page.content()
-            html_lower = html.lower()
-            if any(target in html_lower for target in targets):
-                return {"row_text": normalize(html)}
-
-            print("DEBUG: Lukas hittades inte i page eller frames")
-            print("PAGE URL:", page.url)
-            for frame in page.frames:
-                print("FRAME URL:", frame.url)
-
+            print("DEBUG: Lukas hittades inte i body-texten")
             return None
         finally:
             browser.close()
-
 
 def main():
     config = load_config()
