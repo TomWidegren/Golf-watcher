@@ -86,6 +86,8 @@ def fetch_player_snapshot(url: str, player_full_name: str):
 
 
 def main():
+    print("DEBUG START WATCHER", flush=True)
+    raise RuntimeError("DEBUG TEST")
     print("DEBUG: entering main")
     import time
     time.sleep(10)
