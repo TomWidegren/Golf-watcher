@@ -27,7 +27,14 @@ def main():
             print(f"--- HIT {i} TEXT ---", flush=True)
             print(el.inner_text(), flush=True)
             print(f"--- HIT {i} HTML ---", flush=True)
-            print(el.evaluate("e => e.outerHTML"), flush=True)
+            print("=== PARENT ===", flush=True)
+            print(el.locator("xpath=..").evaluate("e => e.outerHTML"), flush=True)
+
+            print("=== GRANDPARENT ===", flush=True)
+            print(el.locator("xpath=../..").evaluate("e => e.outerHTML"), flush=True)
+
+            print("=== GREAT GRANDPARENT ===", flush=True)
+            print(el.locator("xpath=../../..").evaluate("e => e.outerHTML"), flush=True)
 
         browser.close()
 
