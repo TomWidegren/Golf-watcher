@@ -118,3 +118,6 @@ def main():
 
     save_state(state)
     print("\n".join(updates) if updates else "Ingen ändring.")
+
+if __name__ == "__main__":
+    main()
