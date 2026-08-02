@@ -45,11 +45,7 @@ def send_ntfy(topic: str, title: str, message: str):
     resp.raise_for_status()
 
 def fetch_player_snapshot(url: str, player_full_name: str):
-    targets = [
-        normalize(player_full_name).lower(),
-        "widegren, lukas",
-        "lukas widegren",
-    ]
+    tokens = [normalize(part).lower() for part in player_full_name.split() if part]
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -57,29 +53,24 @@ def fetch_player_snapshot(url: str, player_full_name: str):
 
         try:
             page.goto(url, wait_until="networkidle", timeout=120000)
+            page.wait_for_timeout(5000)
 
-            # Försök hitta raden direkt först
-            def search_now():
-                text = normalize(page.locator("body").inner_text()).lower()
-                return any(target in text for target in targets), text
+            # Välj Herr klass om dropdown finns
+            try:
+                page.locator("select").first.select_option(label="Herr klass")
+                page.wait_for_timeout(3000)
+            except Exception as e:
+                print(f"DEBUG: kunde inte välja Herr klass: {e}", flush=True)
 
-            found, text = search_now()
-            if found:
-                idx = next(text.index(t) for t in targets if t in text)
-                return {"row_text": normalize(page.locator("body").inner_text()[max(0, idx - 200): idx + 500])}
+            body_text = page.locator("body").inner_text()
 
-            # Scrolla ned lite i taget och sök igen
-            for _ in range(12):
-                page.mouse.wheel(0, 1200)
-                page.wait_for_timeout(1500)
+            for line in body_text.splitlines():
+                line_norm = normalize(line).lower()
+                if line_norm and all(token in line_norm for token in tokens):
+                    return {"row_text": normalize(line)}
 
-                found, text = search_now()
-                if found:
-                    idx = next(text.index(t) for t in targets if t in text)
-                    return {"row_text": normalize(page.locator("body").inner_text()[max(0, idx - 200): idx + 500])}
-
-            print("DEBUG: Lukas hittades inte efter scroll")
-            print(page.locator("body").inner_text()[:4000])
+            print("DEBUG: Lukas hittades inte i body-texten", flush=True)
+            print(body_text[:4000], flush=True)
             return None
         finally:
             browser.close()
