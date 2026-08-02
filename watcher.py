@@ -128,7 +128,7 @@ def fetch_player_snapshot(page, player_name: str):
     if not link:
         return None
 
-    row = link.locator("xpath=ancestor::div[starts-with(@id, 'list-item-')][1]")
+    row = link.locator("xpath=ancestor::div[contains(@class,'list-row')]")
     if row.count() == 0:
         return None
 
