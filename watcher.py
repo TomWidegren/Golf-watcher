@@ -45,7 +45,7 @@ def send_ntfy(topic: str, title: str, message: str):
     resp.raise_for_status()
 
 def fetch_player_snapshot(url: str, player_full_name: str):
-    target_names = [
+    targets = [
         normalize(player_full_name).lower(),
         "widegren, lukas",
         "lukas widegren",
@@ -57,29 +57,35 @@ def fetch_player_snapshot(url: str, player_full_name: str):
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=120000)
-            page.wait_for_timeout(10000)
+            page.wait_for_timeout(15000)
 
+            # Sök i huvud-sidan + alla frames
+            frames = [page] + list(page.frames)
+
+            for obj in frames:
+                try:
+                    text = normalize(obj.locator("body").inner_text()).lower()
+                except Exception:
+                    continue
+
+                if any(target in text for target in targets):
+                    return {"row_text": text}
+
+            # Fallback: hela HTML:en på huvudsidan
             html = page.content()
-            text = normalize(html).lower()
+            html_lower = html.lower()
+            if any(target in html_lower for target in targets):
+                return {"row_text": normalize(html)}
 
-            for target in target_names:
-                if target in text:
-                    idx = text.index(target)
-                    snippet = html[max(0, idx - 300): idx + 700]
-                    return {"row_text": normalize(snippet)}
+            print("DEBUG: Lukas hittades inte i page eller frames")
+            print("PAGE URL:", page.url)
+            for frame in page.frames:
+                print("FRAME URL:", frame.url)
 
-            body_text = normalize(page.locator("body").inner_text()).lower()
-            for target in target_names:
-                if target in body_text:
-                    idx = body_text.index(target)
-                    snippet = body_text[max(0, idx - 200): idx + 500]
-                    return {"row_text": normalize(snippet)}
-
-            print("DEBUG: Lukas hittades inte i sidan")
-            print(html[:2000])
             return None
         finally:
             browser.close()
+
 
 def main():
     config = load_config()
