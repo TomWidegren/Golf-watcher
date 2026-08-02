@@ -26,7 +26,15 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Run watcher
-        run: python watcher.py
+        run: |
+          pwd
+          ls -la
+          echo "=== watcher.py head ==="
+          sed -n '1,40p' watcher.py
+          echo "=== START ==="
+          python -u watcher.py
+          echo "=== END ==="
+
 
       - name: Commit state if changed
         run: |
