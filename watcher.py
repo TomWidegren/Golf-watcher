@@ -6,7 +6,7 @@ import requests
 import yaml
 from playwright.sync_api import sync_playwright
 
-from connectors.haninge import fetch_player_snapshot
+from connectors.sgf_ranking import fetch_player_snapshot
 
 CONFIG_FILE = Path("config.yml")
 STATE_FILE = Path("state.json")
