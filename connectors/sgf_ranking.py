@@ -8,21 +8,19 @@ def fetch_player_snapshot(page: Page, player_name: str):
     page.wait_for_timeout(3000)
 
     selects = page.locator("select")
-    print("SELECT_COUNT:", selects.count(), flush=True)
+    selects.nth(0).select_option(label="Pojkar (juniorer)")
+    selects.nth(1).select_option(label="2026")
+    selects.nth(4).select_option(label="Haninge Golfklubb")
 
-    for i in range(selects.count()):
-        sel = selects.nth(i)
-        options = sel.locator("option")
+    page.get_by_role("button", name="Visa listan").click()
+    page.wait_for_timeout(3000)
 
-        print(f"=== SELECT {i} ===", flush=True)
-        for j in range(options.count()):
-            opt = options.nth(j)
-            print(
-                j,
-                repr(opt.inner_text()),
-                opt.get_attribute("value"),
-                opt.get_attribute("selected"),
-                flush=True,
-            )
+    rows = page.locator("tr")
+    print("ROW_COUNT:", rows.count(), flush=True)
+
+    for i in range(min(rows.count(), 15)):
+        txt = rows.nth(i).inner_text().strip()
+        print(f"=== ROW {i} ===", flush=True)
+        print(txt, flush=True)
 
     return None
