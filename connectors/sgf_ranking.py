@@ -16,11 +16,23 @@ def fetch_player_snapshot(page: Page, player_name: str):
     page.wait_for_timeout(3000)
 
     rows = page.locator("tr")
-    print("ROW_COUNT:", rows.count(), flush=True)
 
-    for i in range(min(rows.count(), 15)):
-        txt = rows.nth(i).inner_text().strip()
-        print(f"=== ROW {i} ===", flush=True)
-        print(txt, flush=True)
+    for i in range(rows.count()):
+        row = rows.nth(i)
+        text = row.inner_text().strip()
+
+        if player_name in text:
+            cols = [c.strip() for c in text.split("\t")]
+
+            return {
+                "position": cols[0],
+                "name": cols[1],
+                "birth_year": cols[2],
+                "club": cols[3],
+                "district": cols[4],
+                "status": cols[5],
+                "points": cols[6],
+                "competitions": cols[7],
+            }
 
     return None
