@@ -2,6 +2,7 @@ watches:
   - name: "Lukas Widegren"
     connector: sgf_ranking
     competition: 5624874
+    mode: daily
     player: "Lukas Widegren"
 
 ntfy:
