@@ -1,4 +1,4 @@
-name: Check event platform live
+name: Event Platform - Live
 
 on:
   workflow_dispatch:
