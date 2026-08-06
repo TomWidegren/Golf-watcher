@@ -52,8 +52,8 @@ def display(value) -> str:
 
 
 def get_fetcher(connector_name: str):
-    if connector_name == "haninge":
-        from connectors.haninge import fetch_player_snapshot as fetcher
+    if connector_name == "golfbox_leaderboard":
+        from connectors.golfbox_leaderboard import fetch_player_snapshot as fetcher
         return fetcher
 
     if connector_name == "sgf_ranking":
