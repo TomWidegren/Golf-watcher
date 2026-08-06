@@ -4,11 +4,11 @@ watches:
     mode: daily
     player: "Lukas Widegren"
 
-  - name: "Lukas Widegren live"
-    connector: haninge
-    mode: live
-    competition: 5624874
-    player: "Lukas Widegren"
+- name: "Lukas Widegren live"
+  connector: golfbox_leaderboard
+  mode: live
+  competition: 5624874
+  player: "Lukas Widegren"
 
 ntfy:
   topic: "tom-widegren-golf-92fd71b8"
