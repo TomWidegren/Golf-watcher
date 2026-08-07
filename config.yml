@@ -7,7 +7,7 @@ watches:
   - name: "Lukas Widegren live"
     connector: golfbox_leaderboard
     mode: live
-    competition: 5624636
+    competition: 5324636
     player: "Lukas Widegren"
 
 ntfy:
