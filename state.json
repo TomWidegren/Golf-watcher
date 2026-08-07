@@ -11,5 +11,19 @@
       "points": "4,32",
       "competitions": "6"
     }
+  },
+  "golfbox_leaderboard::5324636::Lukas Widegren": {
+    "snapshot": "{\"club\": \"Haninge Golfklubb\", \"hole\": \"4\", \"name\": \"WIDEGREN, Lukas\", \"position\": \"T19\", \"r1\": \"\", \"r2\": \"\", \"today\": \"\", \"topar\": \"+2\", \"total\": \"\"}",
+    "fields": {
+      "position": "T19",
+      "name": "WIDEGREN, Lukas",
+      "club": "Haninge Golfklubb",
+      "topar": "+2",
+      "hole": "4",
+      "today": "",
+      "r1": "",
+      "r2": "",
+      "total": ""
+    }
   }
 }
