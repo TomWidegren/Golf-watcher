@@ -36,8 +36,17 @@ jobs:
             echo "No state change"
             exit 0
           fi
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          cp state.json /tmp/state.json
+
+          git fetch origin main
+          git reset --hard origin/main
+
+          cp /tmp/state.json state.json
+
           git add state.json
           git commit -m "Update event platform state"
           git push
