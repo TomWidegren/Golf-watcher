@@ -50,6 +50,18 @@ def candidate_names(player_name: str) -> List[str]:
     return result
 
 
+def safe_text(page: Page, selector: str) -> str:
+    try:
+        locator = page.locator(selector)
+
+        if locator.count() == 0:
+            return ""
+
+        return normalize(locator.first.inner_text())
+    except Exception:
+        return ""
+
+
 def fetch_player_snapshot(page: Page, player_name: str):
     page.goto(
         LEADERBOARD_URL,
@@ -59,62 +71,77 @@ def fetch_player_snapshot(page: Page, player_name: str):
 
     page.wait_for_timeout(5000)
 
-    print("=== GOLFBOX DEBUG ===", flush=True)
-    print(f"URL: {page.url}", flush=True)
-    print(
-        f"Player candidates: {candidate_names(player_name)}",
-        flush=True,
-    )
+    if page.get_by_text("Inga resultat ännu", exact=False).count() > 0:
+        print(f"{player_name}: inga resultat ännu")
+        return None
 
-    # Leta brett efter element vars synliga text innehåller efternamnet.
-    last_name = normalize(player_name).split()[-1]
+    candidates = candidate_names(player_name)
 
-    matches = page.get_by_text(
-        re.compile(re.escape(last_name), re.IGNORECASE)
-    )
+    name_cells = page.locator("[id^='list-item-'][id$='-name']")
 
-    print(
-        f"Elements containing '{last_name}': {matches.count()}",
-        flush=True,
-    )
+    for i in range(name_cells.count()):
+        name_cell = name_cells.nth(i)
 
-    for i in range(matches.count()):
-        element = matches.nth(i)
+        text = normalize(name_cell.inner_text())
+        text_lower = text.lower()
 
-        try:
-            print(f"=== MATCH {i} ===", flush=True)
-            print(
-                "TAG:",
-                element.evaluate("e => e.tagName"),
-                flush=True,
-            )
-            print(
-                "TEXT:",
-                repr(normalize(element.inner_text())),
-                flush=True,
-            )
-            print(
-                "HTML:",
-                element.evaluate("e => e.outerHTML"),
-                flush=True,
-            )
+        if not any(candidate in text_lower for candidate in candidates):
+            continue
 
-            # Visa även närmaste tänkbara rad/container.
-            print(
-                "PARENT HTML:",
-                element.evaluate(
-                    "e => e.parentElement ? "
-                    "e.parentElement.outerHTML : ''"
-                ),
-                flush=True,
-            )
+        element_id = name_cell.get_attribute("id") or ""
 
-        except Exception as exc:
-            print(
-                f"Kunde inte läsa MATCH {i}: {exc}",
-                flush=True,
-            )
+        match = re.match(
+            r"list-item-(.+)-name$",
+            element_id,
+        )
 
-    print("=== END GOLFBOX DEBUG ===", flush=True)
+        if not match:
+            continue
 
+        row_id = match.group(1)
+
+        snapshot = {
+            "position": safe_text(
+                page,
+                f"#list-item-{row_id}-position",
+            ),
+            "name": text,
+            "club": safe_text(
+                page,
+                f"#list-item-{row_id}-club",
+            ),
+            "topar": safe_text(
+                page,
+                f"#list-item-{row_id}-topar",
+            ),
+            "hole": safe_text(
+                page,
+                f"#list-item-{row_id}-hole",
+            ),
+            "today": safe_text(
+                page,
+                f"#list-item-{row_id}-today",
+            ),
+            "r1": safe_text(
+                page,
+                f"#list-item-{row_id}-r1",
+            ),
+            "r2": safe_text(
+                page,
+                f"#list-item-{row_id}-r2",
+            ),
+            "total": safe_text(
+                page,
+                f"#list-item-{row_id}-total",
+            ),
+        }
+
+        print(
+            f"{player_name}: hittade GolfBox-rad {row_id}",
+            flush=True,
+        )
+
+        return snapshot
+
+    print(f"{player_name}: hittade ingen rad")
     return None
