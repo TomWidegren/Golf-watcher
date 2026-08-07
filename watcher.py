@@ -107,6 +107,7 @@ def main():
         try:
             for watch in config["watches"]:
                 connector_name = watch.get("connector", "sgf_ranking")
+                watch_mode = watch.get("mode", "daily")
                 competition_id = watch.get("competition", "")
                 player_name = watch["player"]
                 key = f"{connector_name}::{competition_id}::{player_name}"
@@ -130,7 +131,14 @@ def main():
 
                 if previous is None:
                     state[key] = {"snapshot": current_snapshot, "fields": current_fields}
-                    updates.append(f"Baslinje sparad för {player_name}")
+
+                    if watch_mode == "live":
+                        message = format_message(current_fields, player_name)
+                        send_ntfy(topic, f"Golfuppdatering: {player_name}", message)
+                        updates.append(f"Första live-resultat notifierat för {player_name}")
+                    else:
+                        updates.append(f"Baslinje sparad för {player_name}")
+
                     continue
 
                 if previous_snapshot != current_snapshot:
